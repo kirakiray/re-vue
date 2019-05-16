@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>start</title>
+    <script src="../../vue.js"></script>
+    <!-- <script src="../../src/re-vue.js"></script> -->
+</head>
+
+<body>
+    <div id="app">
+        {{ message }}
+    </div>
+</body>
+<script>
+    let data = {
+        message: 'Hello Vue!'
+    };
+
+    var app = new Vue({
+        el: '#app',
+        data
+    });
+
+    setTimeout(() => {
+        app.message = "change the message!";
+    }, 1000);
+
+    console.log(app);
+</script>
+
+</html>
