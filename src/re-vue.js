@@ -53,6 +53,7 @@
             Array.from(ele.attributes).forEach(aObj => {
                 let aName = aObj.name;
                 let aValue = aObj.value;
+
                 // v-bind修正
                 if (/^v\-bind:/.test(aName)) {
                     let bindName = aName.replace(/^v\-bind:/, "");
@@ -67,6 +68,17 @@
 
                     // 去除表达属性
                     ele.attributes.removeNamedItem(aName);
+                }
+
+                // v-if修正
+                if (/^v\-if/.test(aName)) {
+                    tar.on(`change-${aValue}`, data => {
+                        if (data.value) {
+                            ele.style.display = "";
+                        } else {
+                            ele.style.display = "none";
+                        }
+                    });
                 }
             });
         });
