@@ -47,6 +47,29 @@
                 tarText.textContent = data.value;
             });
         });
+
+        // 所有元素修正
+        Array.from(tar.$el.querySelectorAll(`*`)).forEach(ele => {
+            Array.from(ele.attributes).forEach(aObj => {
+                let aName = aObj.name;
+                let aValue = aObj.value;
+                // v-bind修正
+                if (/^v\-bind:/.test(aName)) {
+                    let bindName = aName.replace(/^v\-bind:/, "");
+
+                    switch (bindName) {
+                        case "title":
+                            tar.on(`change-${aValue}`, data => {
+                                ele.setAttribute("title", data.value);
+                            });
+                            break;
+                    }
+
+                    // 去除表达属性
+                    ele.attributes.removeNamedItem(aName);
+                }
+            });
+        });
     }
 
     // main class
