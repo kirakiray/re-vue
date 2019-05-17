@@ -4,10 +4,12 @@
     // const EVENTS = "_events";
     // const DATA = "_data";
     // const KEYS = "_keys";
+    // const OBS = "_obs";
 
     const EVENTS = Symbol("events");
     const DATA = Symbol("data");
     const KEYS = Symbol("keys");
+    const OBS = Symbol("obs");
 
     // function
     const getEventsArr = (eventName, tar) => {
@@ -19,8 +21,80 @@
         return tarEves;
     };
 
+    // obs对象上的change方法，告诉它可以重新渲染了
+    const obsObjChange = (obj, options) => {
+        // 兄弟层变动
+        obj[OBS].bros.forEach(e => {
+            e[options.k] = options.val;
+        });
+
+        // 告诉父对象变动
+        // obj[OBS].pars.forEach(e => {
+        //     obsObjChange(e);
+        // });
+    }
+
+    // 转换成observer对象
+    const initObj = (obj) => {
+        // 判断类型
+        if (obj instanceof Array) {
+
+        } else if (obj instanceof Object) {
+            // 重新赋值数据
+            for (let k in obj) {
+                let val = obj[k];
+                Object.defineProperty(obj, k, {
+                    get() {
+                        return val;
+                    },
+                    set(d) {
+                        // 相同的值就别触发变动了
+                        if (val === d) {
+                            return;
+                        }
+
+                        val = d;
+                        obsObjChange(obj, {
+                            k,
+                            val: d
+                        });
+                    }
+                });
+            }
+
+            Object.defineProperties(obj, {
+                // 定义obs数据对象
+                [OBS]: {
+                    value: {
+                        // 需要告诉父层的数据
+                        pars: [],
+                        // 同级层的数据
+                        bros: [],
+                        // 触发obs的callback
+                        obscall() {}
+                    }
+                }
+            });
+        }
+    }
+
     // 初始化渲染进程
-    const initVue = (tar, keys) => {
+    const initVue = (tar) => {
+        // v-for指令优先于{{}}文本数据
+        Array.from(tar.$el.querySelectorAll('[v-for]')).forEach(ele => {
+            let forValue = ele.getAttribute("v-for");
+
+            // 分组数据
+            let o_arr = forValue.split(" in ");
+
+            // 内部文本
+            let context = ele.innerText;
+            context = context.replace(/\{/g, "").replace(/}/g, "").trim();
+
+            // 内部文本分组
+            let c_arr = context.split(".");
+        });
+
         // 正则匹配内部的 {{}} 文本型元素
         let newInnerHTML = tar.$el.innerHTML.replace(/\{\{.+?\}\}/g, (text) => {
             // 获取关键key
@@ -121,7 +195,10 @@
         });
 
         // 初始化元素 
-        initVue(this, keys);
+        initVue(this);
+
+        // 初始化
+        initObj(data);
 
         // 数据触发
         keys.forEach(k => {
@@ -131,7 +208,12 @@
         });
 
         // 挂载proxy主体
-        return new Proxy(this, vueHandler);
+        let reobj = new Proxy(this, vueHandler);
+
+        // 添加兄弟元素
+        data[OBS].bros.push(reobj);
+
+        return reobj;
     }
     Object.assign(Vue.prototype, {
         // 事件注册
