@@ -267,6 +267,16 @@
                         tar[aValue]();
                     });
                 }
+
+                // v-model修正
+                if (/^v\-model/.test(aName)) {
+                    ele.addEventListener("input", function () {
+                        tar[aValue] = this.value;
+                    });
+                    tar.on(`change-${aValue}`, data => {
+                        ele.value = data.value;
+                    });
+                }
             });
         });
     }
