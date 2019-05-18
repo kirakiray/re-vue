@@ -56,6 +56,22 @@
         });
     }
 
+    let newArrayProto = {};
+    ["push", "pop", "shift", "unshift", "reverse", "sort", "fill", "splice"].forEach(fName => {
+        let tarFun = Array.prototype[fName];
+        newArrayProto[fName] = function (...args) {
+            // 初始化参数
+            args.forEach(e => initObj(e, {
+                pars: [this]
+            }));
+            let r = tarFun.call(this, ...args);
+            obsObjChange(this, {
+                type: "up"
+            });
+            return r;
+        }
+    });
+
     // 转换成observer对象
     const initObj = (obj, options = {}) => {
         // 不属于对象或者初始化过的都不用进行下去了
@@ -73,19 +89,7 @@
             });
 
             // 重构数组内的方法
-            Object.assign(obj, {
-                push(...args) {
-                    // 初始化参数
-                    args.forEach(e => initObj(e, {
-                        pars: [obj]
-                    }));
-                    let r = Array.prototype.push.call(this, ...args);
-                    obsObjChange(obj, {
-                        type: "up"
-                    });
-                    return r;
-                }
-            });
+            Object.assign(obj, newArrayProto);
         } else if (obj instanceof Object) {
             // 重新赋值数据
             for (let k in obj) {
