@@ -59,17 +59,21 @@
     let newArrayProto = {};
     ["push", "pop", "shift", "unshift", "reverse", "sort", "fill", "splice"].forEach(fName => {
         let tarFun = Array.prototype[fName];
-        newArrayProto[fName] = function (...args) {
-            // 初始化参数
-            args.forEach(e => initObj(e, {
-                pars: [this]
-            }));
-            let r = tarFun.call(this, ...args);
-            obsObjChange(this, {
-                type: "up"
-            });
-            return r;
-        }
+
+        // 重构方法，使其触发冒泡
+        newArrayProto[fName] = {
+            value(...args) {
+                // 初始化参数
+                args.forEach(e => initObj(e, {
+                    pars: [this]
+                }));
+                let r = tarFun.call(this, ...args);
+                obsObjChange(this, {
+                    type: "up"
+                });
+                return r;
+            }
+        };
     });
 
     // 转换成observer对象
@@ -89,7 +93,7 @@
             });
 
             // 重构数组内的方法
-            Object.assign(obj, newArrayProto);
+            Object.defineProperties(obj, newArrayProto);
         } else if (obj instanceof Object) {
             // 重新赋值数据
             for (let k in obj) {
