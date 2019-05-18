@@ -11,7 +11,16 @@
     const KEYS = Symbol("keys");
     const OBS = Symbol("obs");
 
-    // function
+    // public function
+    const transToEle = (str) => {
+        let tdiv = document.createElement("div");
+        tdiv.innerHTML = str;
+        let ele = tdiv.children[0];
+        tdiv.removeChild(ele);
+        return ele;
+    };
+
+    // business function
     const getEventsArr = (eventName, tar) => {
         let tarEves = tar[EVENTS].get(eventName);
         if (!tarEves) {
@@ -23,26 +32,70 @@
 
     // obs对象上的change方法，告诉它可以重新渲染了
     const obsObjChange = (obj, options) => {
+        obj[OBS].obsChangeCall && obj[OBS].obsChangeCall(options);
+
         // 兄弟层变动
-        obj[OBS].bros.forEach(e => {
+        (options.type === "change") && obj[OBS].bros.forEach(e => {
             e[options.k] = options.val;
         });
 
         // 告诉父对象变动
-        // obj[OBS].pars.forEach(e => {
-        //     obsObjChange(e);
-        // });
+        obj[OBS].pars.forEach(e => {
+            let tarKey;
+            Object.keys(e).some(k => {
+                let val = e[k];
+                if (obj === val) {
+                    tarKey = k;
+                    return true;
+                }
+            });
+            obsObjChange(e, {
+                type: "up",
+                k: tarKey
+            });
+        });
     }
 
     // 转换成observer对象
-    const initObj = (obj) => {
+    const initObj = (obj, options = {}) => {
+        // 不属于对象或者初始化过的都不用进行下去了
+        if (!(obj instanceof Object) || obj[OBS]) {
+            return;
+        }
+
         // 判断类型
         if (obj instanceof Array) {
+            obj.forEach(e => {
+                // 转换内部对象
+                initObj(e, {
+                    pars: [obj]
+                });
+            });
 
+            // 重构数组内的方法
+            Object.assign(obj, {
+                push(...args) {
+                    // 初始化参数
+                    args.forEach(e => initObj(e, {
+                        pars: [obj]
+                    }));
+                    let r = Array.prototype.push.call(this, ...args);
+                    obsObjChange(obj, {
+                        type: "up"
+                    });
+                    return r;
+                }
+            });
         } else if (obj instanceof Object) {
             // 重新赋值数据
             for (let k in obj) {
                 let val = obj[k];
+
+                // val是对象的话也要转换
+                initObj(val, {
+                    pars: [obj]
+                });
+
                 Object.defineProperty(obj, k, {
                     get() {
                         return val;
@@ -55,51 +108,43 @@
 
                         val = d;
                         obsObjChange(obj, {
+                            type: "change",
                             k,
                             val: d
                         });
                     }
                 });
             }
-
-            Object.defineProperties(obj, {
-                // 定义obs数据对象
-                [OBS]: {
-                    value: {
-                        // 需要告诉父层的数据
-                        pars: [],
-                        // 同级层的数据
-                        bros: [],
-                        // 触发obs的callback
-                        obscall() {}
-                    }
-                }
-            });
         }
+
+        // 添加obs属性
+        Object.defineProperties(obj, {
+            // 定义obs数据对象
+            [OBS]: {
+                value: {
+                    // 需要告诉父层的数据
+                    pars: options.pars || [],
+                    // 同级层的数据
+                    bros: [],
+                    // 触发obs的callback
+                    obsChangeCall() {}
+                }
+            }
+        });
     }
 
     // 初始化渲染进程
     const initVue = (tar) => {
-        // v-for指令优先于{{}}文本数据
-        Array.from(tar.$el.querySelectorAll('[v-for]')).forEach(ele => {
-            let forValue = ele.getAttribute("v-for");
-
-            // 分组数据
-            let o_arr = forValue.split(" in ");
-
-            // 内部文本
-            let context = ele.innerText;
-            context = context.replace(/\{/g, "").replace(/}/g, "").trim();
-
-            // 内部文本分组
-            let c_arr = context.split(".");
-        });
-
         // 正则匹配内部的 {{}} 文本型元素
         let newInnerHTML = tar.$el.innerHTML.replace(/\{\{.+?\}\}/g, (text) => {
             // 获取关键key
             let key = text.replace(/\{/g, "").replace(/\}/g, "").trim();
-            return `<v-span v-key="${key}"></v-span>`;
+            // 若key带有点，就不处理
+            if (key.includes(".")) {
+                return text;
+            } else {
+                return `<v-span v-key="${key}"></v-span>`;
+            }
         });
 
         // 置换 innerHTML
@@ -119,6 +164,56 @@
             // 记录事件
             tar.on(`change-${vKey}`, data => {
                 tarText.textContent = data.value;
+            });
+        });
+
+        // v-for指令
+        Array.from(tar.$el.querySelectorAll('[v-for]')).forEach(ele => {
+            let forValue = ele.getAttribute("v-for");
+
+            // 分组数据
+            let o_arr = forValue.split(" in ");
+
+            // 内部文本
+            let context = ele.innerText;
+            context = context.replace(/\{/g, "").replace(/}/g, "").trim();
+
+            // 内部文本分组
+            let c_arr = context.split(".");
+
+            // 获取html
+            ele.removeAttribute("v-for");
+            ele.innerText = "";
+            let tempHTML = ele.outerHTML;
+
+            // 添加定位元素
+            let pointEle = new Text();
+            ele.parentNode.insertBefore(pointEle, ele);
+            ele.parentNode.removeChild(ele);
+
+            // 存储渲染的元素
+            let renders = [];
+
+            tar.on(`change-${o_arr[1]}`, d => {
+                // 去掉旧的
+                renders.forEach(e => {
+                    e.parentNode.removeChild(e);
+                });
+
+                // 清空
+                renders = [];
+
+                // 遍历添加
+                d.value.forEach(e => {
+                    // 转换元素
+                    let cEle = transToEle(tempHTML);
+
+                    renders.push(cEle);
+
+                    // 添加内部元素
+                    cEle.innerHTML = e[c_arr[1]];
+                    pointEle.parentNode.insertBefore(cEle, pointEle);
+                });
             });
         });
 
@@ -197,9 +292,6 @@
         // 初始化元素 
         initVue(this);
 
-        // 初始化
-        initObj(data);
-
         // 数据触发
         keys.forEach(k => {
             this.emit(`change-${k}`, {
@@ -210,8 +302,15 @@
         // 挂载proxy主体
         let reobj = new Proxy(this, vueHandler);
 
-        // 添加兄弟元素
+        // obs化对象
+        initObj(data);
         data[OBS].bros.push(reobj);
+        data[OBS].obsChangeCall = (e) => {
+            // 触发改动
+            this.emit(`change-${e.k}`, {
+                value: data[e.k]
+            });
+        }
 
         return reobj;
     }

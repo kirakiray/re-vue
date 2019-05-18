@@ -6,34 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>for</title>
-    <script src="../vue.js"></script>
-    <!-- <script src="../src/re-vue.js"></script> -->
+    <!-- <script src="../vue.js"></script> -->
+    <script src="../src/re-vue.js"></script>
 </head>
 
 <body>
     <div id="app-4">
-        <ol>
+        <ul>
             <li v-for="todo in todos">
                 {{ todo.text }}
             </li>
-        </ol>
+        </ul>
     </div>
 </body>
 <script>
+    let data = {
+        todos: [{
+                text: '学习 JavaScript'
+            },
+            {
+                text: '学习 Vue'
+            },
+            {
+                text: '整个牛项目'
+            }
+        ]
+    };
+
     var app4 = new Vue({
         el: '#app-4',
-        data: {
-            todos: [{
-                    text: '学习 JavaScript'
-                },
-                {
-                    text: '学习 Vue'
-                },
-                {
-                    text: '整个牛项目'
-                }
-            ]
-        }
+        data
     });
 
     console.log(app4);
