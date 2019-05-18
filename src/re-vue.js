@@ -257,6 +257,16 @@
                         }
                     });
                 }
+
+                // v-on修正
+                if (/^v\-on:/.test(aName)) {
+                    let onName = aName.replace(/^v\-on:/, "");
+
+                    // 绑定方法
+                    ele.addEventListener(onName, () => {
+                        tar[aValue]();
+                    });
+                }
             });
         });
     }
@@ -266,12 +276,14 @@
         // 默认数据
         let defaults = {
             // 挂载数据对象
-            data: {}
+            data: {},
+            methods: {}
         };
         Object.assign(defaults, options);
 
         let {
-            data
+            data,
+            methods
         } = defaults;
 
         //获取主体element
@@ -297,8 +309,11 @@
             }
         });
 
+        // 挂载proxy主体
+        let reobj = new Proxy(this, vueHandler);
+
         // 初始化元素 
-        initVue(this);
+        initVue(reobj);
 
         // 数据触发
         keys.forEach(k => {
@@ -307,9 +322,8 @@
             });
         });
 
-        // 挂载proxy主体
-        let reobj = new Proxy(this, vueHandler);
-
+        // 合并方法
+        Object.assign(this, methods);
         // obs化对象
         initObj(data);
         data[OBS].bros.push(reobj);
